@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block body %}
+    {% if error %}
+        <div class="error">
+            <i class="bi bi-x-circle"></i>
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+    <div class="card p{{ task.priority }}">
+        <form class="task" method="post" action="/edit?t={{ task.id }}">
+            <div class="title">
+                <input autofocus autocomplete="off" type="text" required name="title" placeholder="Title" value={{ task.title }}>
+            </div>
+            <div class="other">
+                <div class="desc">
+                    <textarea autocomplete="off" name="desc" placeholder="Description" rows="5">{{ task.title }}</textarea>
+                </div>
+                <div class="task-info"> 
+                    <label for="due">Due Date</label><input type="datetime-local" name="due" id="due" required value={{ task.due_date }} placeholder="Due Date">
+                    <select name="priority" id="priority"  aria-required="true">
+                        <option disabled value="">Priority:</option>
+                        <option {% if task.priority == 3 %}Selected{% endif %} value="3" class="p3">High</option>
+                        <option {% if task.priority == 2 %}Selected{% endif %} value="2" class="p2">Medium</option>
+                        <option {% if task.priority == 1 %}Selected{% endif %} value="1" class="p1">Low</option>
+                    </select>
+                    <input type="text" name="category" placeholder="Category" value={{ task.category }}>
+                </div>
+            </div>
+            <div class="submit">
+                <button type="submit" class="addtask" onclick="this.disabled=true; this.innerText='Editing Task…'; this.form.submit()">Edit task</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let select = document.querySelector('#priority');
+            let card = document.querySelector('.card');
+
+            select.addEventListener("change", function() {
+                card.classList.remove("p3", "p2", "p1")
+
+                if (select.value == "3") {
+                    card.classList.add("p3");
+                }
+                else if (select.value == "2") {
+                    card.classList.add("p2");
+                }
+                else if (select.value == "1") {
+                    card.classList.add("p1");
+                }
+            });
+        });
+    </script>
+{% endblock %}

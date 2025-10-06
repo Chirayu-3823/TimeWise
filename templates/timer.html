@@ -1,0 +1,137 @@
+{% extends "layout.html" %}
+
+{% block title %} TimeWise: Focus Session {% endblock %}
+
+{% block body %}
+    <audio id="timerSound" src="/static/sounds/timer.mp3" preload="auto"></audio>
+    <audio id="timerSound2" src="/static/sounds/confetti.mp3" preload="auto"></audio>
+    <div class="timer-container">
+        <h1 class="index"><img src="/static/timer.png"> Work time!</h1>
+        <div class="timer-values">
+            <p></p>
+        </div>
+        <form method="post" action="/focus-session">
+            <div class="button-wrapper">
+                <button type="submit" class="timer-btn" onclick="this.disabled=true; this.innerText='Ending Timer...'; this.form.submit();">End timer</button>
+            </div>
+        </form>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            document.body.classList.add("background")
+        });
+
+        let h1 = document.querySelector("h1");
+        let p = document.querySelector("p");
+        let ends = {{ end }};
+        let current = 0;
+        let timer = 0;
+        let timerInterval;
+        let status;
+        
+        function updateTimer() {
+            if (timer <= 0) {
+                clearInterval(timerInterval);
+                p.innerHTML = `0:00`;
+                let time = Math.floor(Date.now() / 1000);
+                let remainingSeconds = ends - time;
+                if (remainingSeconds > 0) {
+                    document.getElementById('timerSound').play().catch(err => {
+                    console.warn('Unable to play sound:', err);
+                    });
+                }
+                else {
+                    setTimeout(document.getElementById('timerSound2').play().catch(err => {
+                    console.warn('Unable to play sound:', err);
+                    }), 500);
+                }
+                    
+                setTimeout(() => {
+                    cycle();
+                }, 1000);
+                // optionally redirect or trigger session end
+            } else {
+                // Convert remainingSeconds to mm:ss and update UI
+                let minutes = Math.floor(timer / 60);
+                let seconds = timer % 60;
+                p.innerHTML = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                timer--;
+            }
+        }
+
+        cycle();
+        
+        function endTimer() {
+            fetch('focus-session', {
+                method: "POST",
+                credentials: "same-origin",
+            }).catch(console.error);
+        }
+
+        function cycle() {
+            let time = Math.floor(Date.now() / 1000);
+            let remainingSeconds = ends - time;
+            if (remainingSeconds > 0) {
+                if (current % 2 === 0) {
+                    timer = Math.min(1500, remainingSeconds);
+                    status = "Work Time!"
+                }
+                else if ((current + 1) % 8 === 0) {
+                    timer = Math.min(900, remainingSeconds);
+                    status = "Long Break Time!"
+                }
+                else {
+                    timer = Math.min(300, remainingSeconds);
+                    status = "Break Time!"
+                }
+                current ++; 
+                updateTimer();
+                timerInterval = setInterval(updateTimer, 1000);
+            }
+            else {
+                status = "Session Completed!";
+                clearInterval(heartBeatInterval);
+                endTimer();
+                var end = Date.now() + (5 * 1000);
+                // go Buckeyes!
+                var colors = ['#bb0000', '#ffffff'];
+
+                (function frame() {
+                confetti({
+                    particleCount: 2,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: colors
+                });
+                confetti({
+                    particleCount: 2,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: colors
+                });
+
+                if (Date.now() < end) {
+                    requestAnimationFrame(frame);
+                }
+                }());
+            }
+            h1.innerHTML = status;
+        }
+
+        function sendHeartbeat() {
+            fetch('focus-session/heartbeat', {
+                method: 'POST',
+                credentials: "same-origin",
+            }).then(res => res.json()).then(data => {
+                if (data.status !== "alive") {
+                    console.warn('Timer not running');
+                }
+            })
+            .catch(console.error);
+        }
+
+        const heartBeatInterval = setInterval(sendHeartbeat, 5000);
+    </script>
+{% endblock %}

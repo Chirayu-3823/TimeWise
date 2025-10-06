@@ -1,0 +1,67 @@
+    <nav>
+        <div class="main">
+            <a href="/"><span class="time">Time</span><span class="wise">Wise</span></a>
+        </div>
+        {% if session["user_id"] %}
+            <ul class="navbar-nav">
+                <li class="nav-item">Test</li>
+            </ul>
+
+            <ul class="navbar-menu">
+                <li class="nav-item">Logout</li>
+            </ul>
+        {% else %}
+            <ul class="navbar-menu">
+                <li class="nav-item">Login</li>
+                <li class="nav-item">Register</li>
+            </ul>
+        {% endif %}
+    </nav>
+
+nav {
+    display: flex;
+    align-items: center;
+    filter: brightness(85%);
+    border-bottom: 1px solid black;
+    padding: 15px;
+}
+
+
+.navbar-menu {
+    margin: 0;
+}
+
+CREATE TABLE tasks (
+id INTEGER PRIMARY KEY AUTOINCREMENT,
+user_id INTEGER NOT NULL,
+title TEXT NOT NULL,
+description TEXT DEFAULT 'N/A',
+priority INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 3),
+category TEXT DEFAULT 'MISC',
+due_date DATETIME,
+status TEXT NOT NULL DEFAULT 'pending',
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
+    <form method="get" action="/view" id="filter">
+        <select name="filter" onchange="this.form.submit()">
+            <option {% if filter == "all" %}selected{% endif %} value="all">All</option>
+            <option {% if filter == "pending" %}selected disabled{% endif %} value="pending">Pending</option>
+            <option {% if filter == "completed" %}selected disabled{% endif %} value="completed">Completed</option>
+            <option {% if filter == "overdue" %}selected disabled{% endif %} value="overdue">Pending</option>
+        </select>
+    </form>
+
+    {% if total_today > 0 %}
+        <div class="chart">
+            <h2>☀️ Today's tasks:</h2>
+            <div class="chart-container">
+                <canvas id="todayChart"></canvas>
+            </div>
+            <p>Completed {{ completed_today }} out of {{ total_today }} tasks!</p>
+        </div>
+    {% else %}
+        <div style="text-align: center; margin-top: 2rem;">
+            <h3 style="color: #888;">📭 You're all clear for today!</h3>
+            <p style="color: #aaa;">No tasks due. Enjoy your day 😄</p>
+        </div>
+    {% endif %}

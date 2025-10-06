@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %} TimeWise: Login {% endblock %}
+
+{% block body %}
+<div class="form">
+    <h1>Log In</h1>
+    {% if error %}
+    <div class="error">
+        <i class="bi bi-x-circle"></i>
+        <p>{{ error }}</p>
+    </div>
+    {% endif %}
+    <form  action="\login" method="post">
+        <table class="opt1">
+            <tr>
+                <td>Email address:</td>
+                <td class="info"><input type="email" autofocus autocomplete="off" name="email" placeholder="Email" {% if email %} value = {{ email }} {% endif %} required></td>
+            </tr>
+            <tr>
+                <td>Password:</td>
+                <td class="info"><input type="password" autocomplete="off" name="password" placeholder="Password" required></td>
+            </tr>
+            <tr>
+                <td colspan="2" class="loginbtn">
+                    <div class="button-wrap">
+                        <button type="submit" onclick="this.disabled=true; this.innerText='Logging in…'; this.form.submit()"><i class="bi bi-lock"></i> Log In</button>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </form>
+</div>
+<form class="opt2" action="/register">
+    <p>Don't have an account?</p>
+    <button class="register-btn">Register now</button>
+</form>
+{% endblock %}

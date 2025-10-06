@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block title %}TimeWise: Add Task{% endblock %}
+
+{% block body %}
+    {% if error %}
+        <div class="error">
+            <i class="bi bi-x-circle"></i>
+            <p>{{ error }}</p>
+        </div>
+    {% endif %}
+    <h1 class="index">Add task!</h1>
+    <div class="card">
+        <form class="task" method="post" action="/add">
+            <div class="title">
+                <input autofocus autocomplete="off" type="text" required name="title" placeholder="Title">
+            </div>
+            <div class="other">
+                <div class="desc">
+                    <textarea autocomplete="off" name="desc" placeholder="Description" rows="5"></textarea>
+                </div>
+                <div class="task-info"> 
+                    <label for="due">Due Date</label><input type="datetime-local" name="due" id="due" required placeholder="Due Date">
+                    <select name="priority" id="priority"  aria-required="true">
+                        <option selected disabled value="">Priority:</option>
+                        <option value="3" class="p3">High</option>
+                        <option value="2" class="p2">Medium</option>
+                        <option value="1" class="p1">Low</option>
+                    </select>
+                    <input type="text" name="category" placeholder="Category">
+                </div>
+            </div>
+            <div class="submit">
+                <button type="submit" class="addtask" onclick="this.disabled=true; this.innerText='Adding Task…'; this.form.submit()">Add task</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let select = document.querySelector('#priority');
+            let card = document.querySelector('.card');
+
+            select.addEventListener("change", function() {
+                card.classList.remove("p3", "p2", "p1")
+
+                if (select.value == "3") {
+                    card.classList.add("p3");
+                }
+                else if (select.value == "2") {
+                    card.classList.add("p2");
+                }
+                else if (select.value == "1") {
+                    card.classList.add("p1");
+                }
+            });
+        });
+    </script>
+{% endblock %}

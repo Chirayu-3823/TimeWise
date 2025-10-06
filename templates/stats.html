@@ -1,0 +1,681 @@
+{% extends "layout.html" %}
+
+{% block title %} TimeWise: Statistics {% endblock %}
+
+{% block body %}
+    <div id="Modal" class="modal">
+        <div class="modal-content">
+            <div class="headings">
+                <h2 id="modal-header" style="text-align: center;"></h2>
+                <span class="close" style="height: fit-content; padding-right: 5px; overflow: hidden;">&times;</span>
+            </div>
+            <ol id="modal-text"></ol>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <!-- <input type="radio" id="tab-tasks" name="tab-group" value="tasks" {% if tab == 'tasks' %}checked{% endif %}>
+        <label for="tab-tasks">Tasks</label>
+
+        <input type="radio" id="tab-focus" name="tab-group" value="focus" {% if tab == 'focus' %}checked{% endif %}>
+        <label for="tab-focus">Focus Sessions</label> -->
+        
+        <div class="action">
+            <form method="get" action="/stats">
+                <label for="select-tab">Stats for: </label>
+                <select name="tab" id="select-tab" onchange="this.form.submit()">
+                    <option {% if tab == "tasks" %}selected{% endif %} value="tasks">Tasks</option>
+                    <option {% if tab == "focus" %}selected{% endif %} value="focus">Focus Sessions</option>
+                </select>   
+            </form>
+        </div>
+        
+        <div class="tab-section" id="taskReport">
+            <h1 class="index">📊 Your Task Report!</h1>
+            <div class="streaks">
+                <span class="streak-badge current-streak">🔥 Current Streak: {{ streak }} days</span>
+                <span class="streak-badge longest-streak">🏆 Longest Streak: {{ longest }} days</span>
+            </div>
+        
+            <div class="chart">
+                <h2>☀️ Today's tasks:</h2>
+                {% if total_today > 0 %}
+                    <p class="complete">Completed {{ completed_today }} out of {{ total_today }} ({{ completed_today * 100 // total_today }}%) tasks!</p>
+                    <div class="chart-container">
+                        <canvas id="todayChart"></canvas>
+                    </div>
+                {% else %}
+                    <div class="chart-container tod">
+                        <p style="font-size: x-large; color: #888; width: 100%;">📭 You're all clear for today!</h3>
+                        <p style="font-size: large; color: #aaa; width: 100%;">No tasks due. Enjoy your day 😄</p>
+                    </div>
+                {% endif %}
+            </div>
+        
+            <div class="chart">
+                <h2>📅 Weekly Task Completion:</h2>
+                <div class="chart-container week">
+                    <canvas id="weekChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart" style="margin-bottom: 1em;">
+                <h2>🏷️ Categories:</h2> 
+            {% if category_data %}
+                <div class="chart-container cat">
+                    <canvas id="catChart"></canvas>
+                </div>
+            {% else %}
+                <div class="chart-container tod">
+                    <p style="font-size: x-large; color: #888; width: 100%;">📭 No categories found!</h3>
+                    <p style="font-size: large; color: #aaa; width: 100%;">Try adding tasks from <a style="color: var(--text-color); margin-bottom: 100px;" href="/add">Here!</a></p>
+                </div>
+            {% endif %}
+            </div>
+        </div>
+    
+        <div class="tab-section" id="focusReport">
+            <h1 class="index">📊 Your Session Report!</h1>
+            <div class="streaks">
+                <span class="streak-badge current-streak">🔥 Current Streak: {{ focus_streak }} days</span>
+                <span class="streak-badge longest-streak">🏆 Longest Streak: {{ focus_longest }} days</span>
+            </div>
+
+            <div class="chart">
+                {% if score_data %}
+                    <h2 id="weekFocusCharth2"></h2>
+                    <div class="change">
+                        <form method="get" action="/stats">
+                            <input type="hidden" name="tab" value="focus">
+                            <select class="period" name="period" onchange="this.form.submit()">
+                                <option disabled selected>Time Period</option>
+                                <option value="day">Today</option>
+                                <option value="Week">Week</option>
+                                <option value="Month">Month</option>
+                                <!-- <option value="Year">Year</option> -->
+                            </select>
+                        </form>
+                        <h3></h3>
+                    </div>
+                    <div class="chart-container week">
+                        <canvas id="weekFocusChart"></canvas>
+                    </div>
+                    <div class="chart-container week">
+                        <canvas id="weekScoreChart"></canvas>
+                    </div>
+                {% else %}
+                    <h2 id="blank"></h2>
+                    <div class="change">
+                        <form method="get" action="/stats">
+                            <input type="hidden" name="tab" value="focus">
+                            <select class="period" name="period" onchange="this.form.submit()">
+                                <option disabled selected>Time Period</option>
+                                <option value="day">Today</option>
+                                <option value="Week">Week</option>
+                                <option value="Month">Month</option>
+                                <!-- <option value="Year">Year</option> -->
+                            </select>
+                        </form>
+                        <h3></h3>
+                    </div>
+                    <div class="chart-container tod">
+                        <p style="font-size: x-large; color: #888; width: 100%";>📭 No Session Records found‼️</p>
+                        <p style="font-size: large; color: #aaa; width: 100%;">Try doing a <a style="color: var(--text-color);" href="/focus-session">Focus Session!</a></p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        const all_tasks = {{ tasks|tojson }}
+
+        const modal = document.getElementById("Modal");
+        const span = document.getElementsByClassName("close")[0];
+
+        span.onclick = function() {
+            modal.classList.remove("active");
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.classList.remove("active");
+            }
+        }
+
+        let blank = document.querySelector("#blank") === null ? document.getElementById('weekFocusCharth2') : document.querySelector("#blank");
+        let period;
+        try {
+            period = location.search.split("&")[1].split("=")[1];
+        } catch (error) {
+            period = "Week"
+        }
+        if (period === 'day') {
+            blank.innerHTML = "📅 Today's Focus report:";
+        }
+        else {
+            blank.innerHTML = `📅 ${period}ly Focus report:`
+        }
+
+        period = period === "day" ? "Day" : period
+
+        let h3 = document.querySelector("h3");
+        let change = {{ change }};
+
+        if (change === -101) {
+            h3.innerHTML = `<i class='bi bi-caret-up-fill' style='color: green'><i class='bi bi-infinity'></i>%</i>`
+        }
+        else if (change > 0) {
+            h3.innerHTML = `<i class='bi bi-caret-up-fill' style='color: green'>${change}%</i>`
+        }
+        else if (change < 0) {
+            h3.innerHTML = `<i class='bi bi-caret-down-fill' style='color: red'>${change}%</i>`
+        }
+        else {
+            h3.innerHTML = `<i class='bi bi-caret-right-fill' style='color: yellow'>${change}%</i>`
+        }
+        
+        function getRandomColorArray(count) {
+            const colors = [];
+            for (let i = 0; i < count; i++) {
+                colors.push(getRandomHexColor());
+            }
+            return colors;
+        }
+
+        const tab = "{{ tab }}";  // passed from Flask
+        const taskReport = document.getElementById("taskReport");
+        const focusReport = document.getElementById("focusReport");
+
+        if (tab === "tasks") {
+            taskReport.style.display = "block";
+            focusReport.style.display = "none";
+        } else {
+            taskReport.style.display = "none";
+            focusReport.style.display = "block";
+        }
+
+        document.querySelector(".period").addEventListener("change", function() {
+                localStorage.setItem("scrollPosition", window.scrollY);
+        });
+
+        window.addEventListener("load", function () {
+            const scroll = localStorage.getItem("scrollPosition");
+            console.log(scroll);
+            if (scroll !== null) {
+            window.scrollTo(0, parseInt(scroll));
+            localStorage.removeItem("scrollPosition");
+            console.log(localStorage.getItem("scrollPosition"));
+            }
+        });
+
+        function getRandomHexColor() {
+            return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        }
+
+        function datetime() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+
+        const capitalize = str => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        
+        let isDark = document.documentElement.classList.contains("dark");
+
+        let todayChart;
+        let weekChart;
+        let catChart;
+
+        let weekFocusChart;
+        let weekScoreChart;
+    
+        function createTodayChart() {
+            const canvas = document.getElementById('todayChart')
+            if (!canvas) return;
+
+            const todayCtx = canvas.getContext('2d')
+            if (todayChart) todayChart.destroy();
+
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = centerX
+
+            // Green - Completed
+            const completedGradient = todayCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            completedGradient.addColorStop(0, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');     // Inner center - deeper
+            completedGradient.addColorStop(1, 'rgba(0, 255, 140, 0.9)');   // Outer glow
+
+            // Red - Remaining
+            const remainingGradient = todayCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            remainingGradient.addColorStop(0, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');     // Inner center - deeper
+            remainingGradient.addColorStop(1, 'rgba(255, 99, 132, 0.9)');  // Outer glow
+
+
+            todayChart = new Chart(todayCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'Remaining'],
+                    datasets: [{
+                        data: [{{ completed_today }}, {{ total_today - completed_today }}],
+                        backgroundColor: [completedGradient, remainingGradient],
+                        borderColor: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333",
+                                padding: 30
+                            }       
+                        }
+                    },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const type = index == 0 ? "completed" : "pending";
+                            var date = datetime();
+                            display = [];
+                            all_tasks.forEach(element => {
+                                if (element.due_date.split('T')[0] === date.split('T')[0] && element.status === type) {
+                                    var isOverdue = element.due_date < date
+                                    display.push(`<li style="${type === "pending" ? isOverdue ? "color: red;" :  "color: #D4A000": "color: #22C55E"}"><div class="list-item">${element.title} ${isOverdue && type === "pending" ? "<span><img src='/static/overdue.png' height='50' width='50'></span>" : ""} </div></li>`);
+                                }
+                            });
+                            modal.classList.add("active");
+                            console.log(display)
+                            let display_final = display.join("");
+                            document.getElementById("modal-text").innerHTML = display_final;
+                            document.getElementById("modal-header").innerHTML = `<img src = ${type === "pending" ? "/static/pending.png" : "/static/completed.png"} height='75' width= '75'> Your ${display.length} ${capitalize(type)} ${display.length === 1 ? "Task" : "Tasks"}:`
+                        }
+                    },
+                    cutout: 100 
+                }
+            });
+        }
+
+        function createWeekChart() {
+            const canvas = document.getElementById('weekChart');
+            const weekCtx = canvas.getContext('2d');
+            if (weekChart) weekChart.destroy();
+
+            const rect = canvas.getBoundingClientRect();
+            const height = rect.height;
+
+            // Gradient for Completed (e.g., bright blue to transparent dark)
+            const completedGradient = weekCtx.createLinearGradient(0, 0, 0, height);
+            completedGradient.addColorStop(0, 'rgba(0, 191, 255, 0.8)');   // Top: Cyan-ish
+            completedGradient.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');       // Bottom: Dark transparent
+
+            // Gradient for Total (e.g., warm red to transparent dark)
+            const totalGradient = weekCtx.createLinearGradient(0, 0, 0, height);
+            totalGradient.addColorStop(0, 'rgba(255, 99, 132, 0.8)');      // Top: Red-ish
+            totalGradient.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');           // Bottom: Dark transparent
+
+            weekChart = new Chart(weekCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ weekly_labels|tojson }},
+                    datasets: [
+                        {
+                            label: 'Completed',
+                            data: {{ weekly_completed | tojson }},
+                            backgroundColor: completedGradient,
+                            borderColor: 'rgba(0, 191, 255, 1)',
+                            fill: true,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'Total',
+                            data: {{ weekly_total | tojson }},
+                            backgroundColor: totalGradient,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            fill: true,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: isDark ? "black": "white",
+                    layout: {
+                        padding: { bottom: 30 }
+                    },
+                    plugins: {
+                        tooltip: {
+                            titleColor: isDark ? '#fff' : '#000',
+                            backgroundColor: isDark ? '#222' : '#fff',
+                            borderColor: isDark ? '#444' : '#ccc',
+                            bodyColor: isDark ? '#ddd' : '#333',
+                            borderWidth: 1
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333",
+                                padding: 20,
+                                font: { size: 16 }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+
+
+
+        function createCatChart() {
+            const canvas = document.getElementById('catChart')
+            if (!canvas) return;
+
+            const catCtx = canvas.getContext('2d')
+            if (catChart) catChart.destroy();
+
+            const rect = canvas.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = centerX
+
+            const chartjsColors = [
+                '#3366CC', '#DC3912', '#FF9900', '#109618', '#990099',
+                '#0099C6', '#DD4477', '#66AA00', '#B82E2E', '#316395'
+            ];
+            const categoryData = {{ category_data|tojson }};
+            const labelling = Object.keys(categoryData);
+            const values = Object.values(categoryData); 
+            const backgroundColors = getRandomColorArray(values.length);
+            const gradients = []
+
+            // backgroundColors.forEach(element => {
+            //     const gradient = catCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+            //     gradient.addColorStop(0, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');
+            //     gradient.addColorStop(1, element);
+            //     gradients.push(gradient)
+            // });
+
+            for (let i = 0; i < values.length; i++) {
+                let index = i % chartjsColors.length;
+                const gradient = catCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+                gradient.addColorStop(0, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');
+                gradient.addColorStop(1, chartjsColors[index]);
+                gradients.push(gradient)
+            }
+
+            catChart = new Chart(catCtx, {
+                type: 'pie',
+                data: {
+                    labels: labelling,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: gradients,
+                        borderColor: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333"
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    size: 18
+                                },
+                                color: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333",
+                                padding: 20 // ✅ this is what creates space below the legend
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        createTodayChart();
+        createWeekChart();
+        createCatChart();
+
+        let btn = document.querySelector("#mode");
+
+        btn.addEventListener('click', function(e) {
+            setTimeout(() => {
+                isDark = !isDark;
+                createTodayChart();
+                createWeekChart();
+                createCatChart();
+                createFocusWeekChart();
+                createScoreWeekChart();
+            }, 50);
+        });
+
+        let tabSelect = document.querySelector("#select-tab");
+
+        tabSelect.addEventListener("change", () => {
+        const selectedTab = tabSelect.value;
+
+        if (selectedTab === "tasks") {
+            // Show task charts
+            createTodayChart();
+            createWeekChart();
+            createCatChart();
+        } else if (selectedTab === "focus") {
+            // Show focus charts
+            createFocusWeekChart();
+            createScoreWeekChart();
+        }
+    });
+
+
+        function createFocusWeekChart() {
+            const canvas = document.getElementById('weekFocusChart');
+            const weekFocusCtx = canvas.getContext('2d');
+            if (weekFocusChart) weekFocusChart.destroy();
+
+            const rect = canvas.getBoundingClientRect();
+            const height = rect.height;
+
+            // Gradient for Completed (e.g., bright blue to transparent dark)
+            const completedGradient = weekFocusCtx.createLinearGradient(0, 0, 0, height);
+            completedGradient.addColorStop(0, 'rgba(0, 255, 140, 0.9)');   // Top: Green-ish
+            completedGradient.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');  // Bottom: Dark transparent
+
+            // Gradient for Total (e.g., warm red to transparent dark)
+            const totalGradient = weekFocusCtx.createLinearGradient(0, 0, 0, height);
+            totalGradient.addColorStop(0, 'rgba(255, 99, 132, 0.8)');      // Top: Red-ish
+            totalGradient.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');           // Bottom: Dark transparent
+
+            weekFocusChart = new Chart(weekFocusCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ focus_data_dates | tojson }},
+                    datasets: [
+                        {
+                            label: "Actual Time",
+                            data: {{ focus_data_actual | tojson }},
+                            backgroundColor: completedGradient,
+                            borderColor: 'rgba(0, 255, 140, 0.9)',
+                            fill: true,
+                            borderWidth: 3
+                        },
+                        {
+                            label: "Planned Time",
+                            data: {{ focus_data_planned | tojson }},
+                            backgroundColor: totalGradient,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            fill: true,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: isDark ? "black": "white",
+                    layout: {
+                        padding: { bottom: 30 }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: "Planned vs Actual Session Times",
+                            color: isDark ? '#fff' : '#000',
+                            font: {
+                                size: 20
+                            }
+                        },
+                        tooltip: {
+                            titleColor: isDark ? '#fff' : '#000',
+                            backgroundColor: isDark ? '#222' : '#fff',
+                            borderColor: isDark ? '#444' : '#ccc',
+                            bodyColor: isDark ? '#ddd' : '#333',
+                            borderWidth: 1
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333",
+                                padding: 20,
+                                font: { size: 16 }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                autoSkip: true,
+                                maxRotation: 30
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createScoreWeekChart() {
+            const canvas = document.getElementById('weekScoreChart');
+            const weekScoreCtx = canvas.getContext('2d');
+            if (weekScoreChart) weekScoreChart.destroy();
+
+            const rect = canvas.getBoundingClientRect();
+            const height = rect.height;
+            const data_set = {{ score_data | tojson }};
+            console.log(data_set)
+            const completedGradient = weekScoreCtx.createLinearGradient(0, 0, 0, height);
+            completedGradient.addColorStop(0, 'rgba(0, 191, 255, 0.8)');   // Top: Cyan-ish
+            completedGradient.addColorStop(1, isDark ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)');       // Bottom: Dark transparent
+
+            weekScoreChart = new Chart(weekScoreCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ focus_data_dates | tojson }},
+                    datasets: [
+                        {
+                            label: "Score",
+                            data: data_set,
+                            backgroundColor: completedGradient,
+                            borderColor: 'rgba(0, 191, 255, 1)',
+                            fill: true,
+                            borderWidth: 3
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: isDark ? "black": "white",
+                    layout: {
+                        padding: { bottom: 30 }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: "Average Session Scores",
+                            color: isDark ? '#fff' : '#000',
+                            font: {
+                                size: 20
+                            }
+                        },
+                        tooltip: {
+                            titleColor: isDark ? '#fff' : '#000',
+                            backgroundColor: isDark ? '#222' : '#fff',
+                            borderColor: isDark ? '#444' : '#ccc',
+                            bodyColor: isDark ? '#ddd' : '#333',
+                            borderWidth: 1
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: document.documentElement.classList.contains("dark") ? "#f5f5f5" : "#333",
+                                padding: 20,
+                                font: { size: 16 }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                autoSkip: true,
+                                maxRotation: 30
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        createFocusWeekChart();
+        createScoreWeekChart();
+
+        
+    </script>
+
+
+{% endblock %}

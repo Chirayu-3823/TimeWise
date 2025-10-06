@@ -1,0 +1,160 @@
+{% extends "layout.html" %}
+
+{% block body %}
+<div class="streaks">
+    <span class="streak-badge current-streak">🔥 Current Streak: {{ streak }} days</span>
+    <span class="streak-badge longest-streak">🏆 Longest Streak: {{ longest }} days</span>
+</div>
+
+<h1 class="index">Today's tasks:</h1>
+{% if tasks %}
+<div class="progress-tasks">
+    <h3>Completed {{ completed }} out of {{ tasks | length }} tasks</h3>
+    <div class="progress-container">
+        <div class="progress-bar" style="width: {{ progress }}%;"></div>
+    </div>
+</div>
+
+<h2 class="task-status">Pending Tasks:</h2>
+{% if completed != tasks | length %}
+{% for task in tasks %}
+{% if task.status == "pending" %}
+<div class="card {% if task.overdue %}overdue{% endif %}  p{{ task.priority }}">
+    <form method="post" class="toggle-task on" action="/">
+        <input type="hidden" name="completed" value="{{ task.id }}">
+        <button class="completed" value="{{ task.id }}" type="submit"><i class="bi bi-square"></i></button>
+    </form>
+    <div class="content" id="{{ task.id }}">
+        <div class="title-index">
+            {% if task.overdue %}<span class="overdue-span"><i class="bi bi-exclamation-circle"></i> OVERDUE</span>{% endif %} 
+            <h2> {{ task.title }} </h2>
+            <a href="/edit?t={{ task.id }}"><i class="bi bi-pencil-square"></i></a>
+        </div>
+        <div class="other">
+            <div class="desc index-desc">
+                <p> {{ task.description }}</p>
+                <span class="priority-badge b{{ task.priority }}">{% if task.priority == 3 %}🔴 High{% elif task.priority ==2 %}🟡 Medium{% else %}🟢 Low{% endif %}</span>
+            </div>
+            <div class="task-info">
+                <p>Due date: {{ task.due_date }}</p>
+                <p>Status: {{ task.status }}</p>
+                <p>Category: {{ task.category }}</p>    
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% else %}
+<h2 class="progress-tasks">Congratulations 🎉! You're done with all your tasks! Relax for the day or <a href="/add" style="color:white">add more!</a></h2>
+{% endif %}
+{% if completed > 0 %}
+<h2 class="task-status">Completed Tasks:</h2>
+{% for task in tasks %}
+{% if task.status == "completed" %}
+<div class="card p{{ task.priority }}">
+    <form method="post" class="toggle-task" action="/">
+        <input type="hidden" name="completed" value="{{ task.id }}">
+        <button class="completed" value="{{ task.id }}" type="submit"><i class="bi bi-check-square-fill" style="color: #89F336;"></i></button>
+    </form>
+    <div class="content Completed" id="{{ task.id }}">
+        <div class="title-index">
+            <h2> {{ task.title }} </h2>
+            <a href="/edit?t={{ task.id }}"><i class="bi bi-pencil-square"></i></a>
+        </div>
+        <div class="other">
+            <div class="desc index-desc">
+                <p> {{ task.description }} </p>
+                <span class="priority-badge b{{ task.priority }}">{% if task.priority == 3 %}🔴 High{% elif task.priority ==2 %}🟡 Medium{% else %}🟢 Low{% endif %}</span>
+            </div>
+            <div class="task-info">
+                <p>Due date: {{ task.due_date }}</p>
+                <p>Status: {{ task.status }}</p>
+                <p>Category: {{ task.category }}</p>    
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% else %}
+<div class="tod">
+    <p style="font-size: xx-large; color: #888; width: 100%;">📭 No tasks for the day!</h3>
+    <p style="font-size: x-large; color: #aaa; width: 100%;">Enjoy your day or <a style="color: var(--text-color); margin-bottom: 100px;" href="/add">add some!</a> 😄</p>
+</div>
+{% endif %}
+
+<script>
+    document.querySelectorAll("form.toggle-task.on").forEach(form => {
+        form.addEventListener("submit", function(e) {
+            
+            const completed = parseInt({{ completed }}) + 1
+            const len = parseInt({{ tasks | length }})
+            if (completed === len){
+                
+                e.preventDefault();
+
+                const formData = new FormData(form);
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                })
+                .catch(error => {
+                    console.log(error);
+                });
+
+                var content = document.getElementById(`${form.elements[0].value}`)
+                content.classList.add("Completed");
+                card = content.parentElement;
+                card.classList.remove("overdue");
+                var sound = new Audio("static/sounds/confetti.mp3");
+                sound.play();
+                var duration = 5000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+                function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+                }
+
+                var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                var particleCount = 50 * (timeLeft / duration);
+                // since particles fall down, start a bit higher than random
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+                confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+                }, 250);
+                setTimeout(function() {
+                    location.reload();
+                }, 5000)
+            }
+
+        });
+    });
+
+
+    document.querySelectorAll(".toggle-task").forEach(form => {
+        form.addEventListener("submit", function() {
+            localStorage.setItem("scrollPosition", window.scrollY);
+        });
+    });
+
+    window.addEventListener("load", function () {
+            const scroll = localStorage.getItem("scrollPosition");
+            console.log(scroll);
+            if (scroll !== null) {
+            window.scrollTo(0, parseInt(scroll));
+            localStorage.removeItem("scrollPosition");
+            }
+        });
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "layout.html" %}
+
+{% block body %}
+    <div class="action">
+        <form method="get" action="/view">
+            <input type="hidden" name="filter" value="{{ filter }}">
+            <input type="hidden" name="search" value="{{ search }}">
+            <label for="sort-select">Sort by: </label>
+            <select name="sort" id="sort-select" onchange="this.form.submit()">
+                <option {% if sort == "due_date" %}selected{% endif %} value="due_date">Due date</option>
+                <option {% if sort == "priority" %}selected{% endif %} value="priority">Priority</option>
+            </select>   
+        </form>
+       <form method="get" action="/view" id="filtering">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input type="hidden" name="search" value="{{ search }}">
+            <label for="filter-select" onclick=" document.getElementById('filter-select').focus(); document.getElementById('filter-select').click();">Filter: </label>
+            <select name="filter" id="filter-select" onchange="this.form.submit()">
+                <option {% if filter == "all" %}selected{% endif %} value="all">All</option>
+                <option {% if filter == "pending" %}selected{% endif %} value="pending">Pending</option>
+                <option {% if filter == "completed" %}selected{% endif %} value="completed">Completed</option>
+                <option {% if filter == "overdue" %}selected{% endif %} value="overdue">Overdue</option>
+            </select>
+        </form> 
+    </div>
+    <h1 class="index">{% if filter=="all" %}All tasks:{% else %}All {{ filter }} tasks:{% endif %}</h1>
+    {% if tasks %}
+        <form class="searchform" method="get" action="/view">
+            <input type="hidden" name="filter" value="{{ filter }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input autocomplete="off" placeholder="Search title(s)" type="text" name="search" class="searchinput" value="{{ search }}">
+        </form>
+        {% if sort != "priority" %}
+            {% set current = tasks[0].due_date %}
+            {% set current = current.split(' at ') %}
+            {% set current = current[0] %}
+            {% set ns = namespace(date=current) %}
+            <h2 class="date"> {{ current }}: </h2>
+            {% for task in tasks %}
+                {% set date = task['due_date'].split(' at ') %}
+                {% set date = date[0] %}
+                {% if ns.date == date %}
+                    {% include "card.html" %}
+                {% else %}
+                    {% set ns.date = date %}
+                    <h2 class="date">{{ date }}: </h2>
+                    {% include "card.html" %}
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            {% set current = tasks[0].priority %}
+            {% set priorities = {1: "Low", 2: "Medium", 3: "High"} %}
+            {% set ns = namespace(priority=current) %}
+            <h2 class="date"> {{ priorities[current] }}: </h2>
+            {% for task in tasks %}
+                {% set priority = task['priority'] %}
+                {% if ns.priority == priority %}
+                    {% include "card.html" %}
+                {% else %}
+                    {% set ns.priority = priority %}
+                    <h2 class="date">{{ priorities[priority] }}: </h2>
+                    {% include "card.html" %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    {% else %}
+        <form class="searchform" method="get" action="/view">
+            <input type="hidden" name="filter" value="{{ filter }}">
+            <input type="hidden" name="sort" value="{{ sort }}">
+            <input autocomplete="off" placeholder="Search title(s)" type="text" name="search" class="searchinput" value="{{ search }}">
+        </form>
+        <h2 class="progress-tasks"> No such tasks found.</h2>
+    {% endif %}
+    <script>
+        let timer;
+        const search = document.querySelector(".searchinput");
+
+        document.querySelectorAll(".toggle-task").forEach(form => {
+            form.addEventListener("click", function() {
+                localStorage.setItem("scrollPositionV", window.scrollY);
+            });
+        });
+
+        window.addEventListener("load", function () {
+            const scroll = localStorage.getItem("scrollPositionV");
+            console.log(scroll);
+            if (scroll !== null) {
+            window.scrollTo(0, parseInt(scroll));
+            localStorage.removeItem("scrollPositionV");
+            console.log(localStorage.getItem("scrollPositionV"));
+            }
+
+            if (search) {
+                search.focus();
+                const val = search.value;
+                search.value = "";
+                search.value = val;
+            }
+        });
+
+        // Search input debounce
+        if (search) {
+            search.addEventListener("keyup", () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    document.querySelector(".searchform").submit();
+                }, 300);
+            });
+        }
+    </script>
+{% endblock %}  
