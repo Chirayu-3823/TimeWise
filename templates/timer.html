@@ -28,6 +28,10 @@
         let timer = 0;
         let timerInterval;
         let status;
+        let starts = {{ start }}
+        let cycleDurations = [1500, 300, 1500, 300, 1500, 300, 1500, 900];
+        let labels = ["Work Time!", "Break Time!", "Work Time!", "Break Time!",
+              "Work Time!", "Break Time!", "Work Time!", "Long Break Time!"];
         
         function updateTimer() {
             if (timer <= 0) {
@@ -69,22 +73,24 @@
         }
 
         function cycle() {
-            let time = Math.floor(Date.now() / 1000);
-            let remainingSeconds = ends - time;
+            let now = Math.floor(Date.now() / 1000);
+            let elapsed = now - starts;
+            let remainingSeconds = ends - now;
             if (remainingSeconds > 0) {
-                if (current % 2 === 0) {
-                    timer = Math.min(1500, remainingSeconds);
-                    status = "Work Time!"
+                // FIND CURRENT CYCLE
+                let i = 0;
+                let remaining = elapsed;
+
+                while (remaining >= cycleDurations[i]) {
+                    remaining -= cycleDurations[i];
+                    i = (i + 1) % 8;
                 }
-                else if ((current + 1) % 8 === 0) {
-                    timer = Math.min(900, remainingSeconds);
-                    status = "Long Break Time!"
-                }
-                else {
-                    timer = Math.min(300, remainingSeconds);
-                    status = "Break Time!"
-                }
-                current ++; 
+
+                // time left in THIS cycle
+                timer = Math.min(cycleDurations[i] - remaining, remainingSeconds);
+                status = labels[i];
+
+                clearInterval(timerInterval);
                 updateTimer();
                 timerInterval = setInterval(updateTimer, 1000);
             }

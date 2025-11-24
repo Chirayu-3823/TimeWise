@@ -526,7 +526,8 @@ def focus():
                 return redirect("/focus-session")
             
             end = int(start.timestamp()) + duration
-            return render_template("timer.html", user=user, end = end)
+            start = int(start.timestamp())
+            return render_template("timer.html", user=user, end = end, start=start)
     else:
         if request.method == "POST":
 
@@ -557,10 +558,11 @@ def focus():
             session["timer_duration"] = duration
             session["last_heartbeat"] = datetime.now(timezone.utc)
             end = int(start.timestamp()) + duration
+            start = int(start.timestamp())
 
             db.execute("INSERT INTO focus_sessions (user_id, planned_time, actual_time, date, score) VALUES(?, ?, ?, ?, ?)", user['id'], duration, 0, date.today(), 0)
 
-            return render_template("timer.html", user=user, end=end)
+            return render_template("timer.html", user=user, end=end, start = start)
         else:
             return render_template("pomodoro.html", user=user)    
         
